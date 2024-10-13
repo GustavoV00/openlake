@@ -257,7 +257,10 @@ tenant:
   #    - name: my-minio-bucket
   #         objectLock: false        # optional
   #         region: us-east-1        # optional
-  buckets: []
+  buckets:
+    - name: landing
+    - name: metastore
+    - name: trino
   ###
   # Array of Kubernetes secrets from which the Operator generates MinIO users during tenant provisioning.
   #
