@@ -458,7 +458,7 @@ ingress:
     path: /
     pathType: Prefix
   console:
-    enabled: false
+    enabled: true
     ingressClassName: ""
     labels: {}
     annotations: {}
