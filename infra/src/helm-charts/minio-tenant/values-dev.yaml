@@ -261,6 +261,7 @@ tenant:
     - name: landing
     - name: metastore
     - name: trino
+    - name: test
   ###
   # Array of Kubernetes secrets from which the Operator generates MinIO users during tenant provisioning.
   #
