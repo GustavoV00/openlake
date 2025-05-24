@@ -13,7 +13,7 @@ spec:
       valueFiles:
         - values-dev.yaml
   destination:
-    name: "kind-kind"
+    name: "kind-demo
     namespace: "deppstorage"
     server: ""
   syncPolicy:

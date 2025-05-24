@@ -1,20 +1,20 @@
 apiVersion: argoproj.io/v1alpha1
 kind: Application
 metadata:
-  name: minio-operator
-  namespace: argocd
+  name: trino
+  namespace: processing
 spec:
   project: default
   source:
     repoURL: "https://github.com/GustavoV00/openlake.git"
-    path: infra/src/helm-charts/minio-operator
+    path: infra/src/helm-charts/spark
     targetRevision: HEAD
     helm:
       valueFiles:
-        - values-dev.yaml
+        - values.yaml
   destination:
-    name: "kind-demo
-    namespace: "deppstorage"
+    name: "kind-demo"
+    namespace: processing
     server: ""
   syncPolicy:
     syncOptions:
