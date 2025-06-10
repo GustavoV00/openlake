@@ -1,2 +1,16 @@
 defaultAirflowRepository: airflow-custom
 defaultAirflowTag: "1.0.0"
+
+gitSync:
+    enabled: true
+
+    repo: ssh://git@github.com/GustavoV00/openlake.git 
+    branch: main
+    rev: HEAD
+    depth: 1
+    # the number of consecutive failures allowed before aborting
+    maxFailures: 0
+    # subpath within the repo where dags are located
+    # should be "" if dags are at repo root
+    subPath: ""
+    sshKeySecret: airflow-ssh-git-secret
