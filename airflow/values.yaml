@@ -1,0 +1,2 @@
+defaultAirflowRepository: airflow-custom
+defaultAirflowTag: "1.0.0"
