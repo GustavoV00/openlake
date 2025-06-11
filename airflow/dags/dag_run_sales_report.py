@@ -29,7 +29,7 @@ def spark_sales_report_dag_v2():
     run_spark_report = SparkKubernetesOperator(
         task_id="run_sales_report_job",
         namespace="spark-operator",
-        application_file="templates/sales_report_job.yaml.j2",
+        application_file="spark-operator/sales_report_job.yaml",
         # 'template_vars' has been removed from here
         kubernetes_conn_id="kubernetes_default",
     )
