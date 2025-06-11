@@ -4,7 +4,7 @@ import pendulum
 from airflow.decorators import dag
 from airflow.providers.cncf.kubernetes.operators.spark_kubernetes import SparkKubernetesOperator
 
-# The path to your sales report script in MinIO, from your YAML
+# This constant can stay here for clarity
 SPARK_SCRIPT_PATH = "s3a://spark-apps/spark-test.py"
 
 @dag(
@@ -17,6 +17,7 @@ SPARK_SCRIPT_PATH = "s3a://spark-apps/spark-test.py"
         "spark_job_namespace": "spark-job",
         "minio_endpoint_url": "http://minio.minio:9000",
         "spark_image": "localhost:5000/spark-s3:3.5.1",
+        "main_application_file": SPARK_SCRIPT_PATH, 
     },
     tags=["spark", "kubernetes", "reporting"],
 )
@@ -29,7 +30,7 @@ def spark_sales_report_dag_v2():
         task_id="run_sales_report_job",
         namespace="spark-operator",
         application_file="templates/sales_report_job.yaml.j2",
-        template_vars={"main_application_file": SPARK_SCRIPT_PATH},
+        # 'template_vars' has been removed from here
         kubernetes_conn_id="kubernetes_default",
     )
 

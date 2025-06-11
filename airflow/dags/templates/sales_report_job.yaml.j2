@@ -9,7 +9,7 @@ spec:
   mode: cluster
   image: "{{ params.spark_image }}" # Use a parameter for the image
   imagePullPolicy: Always
-  mainApplicationFile: "{{ main_application_file }}" # Set dynamically by the DAG
+  mainApplicationFile: "{{ params.main_application_file }}"
   sparkVersion: "3.5.1"
   
   sparkConf:
