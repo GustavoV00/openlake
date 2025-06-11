@@ -1,21 +1,20 @@
-apiVersion: "sparkoperator.k8s.io/v1beta2"
+apiVersion: sparkoperator.k8s.io/v1beta2
 kind: SparkApplication
 metadata:
-  # The name will be dynamically set by Airflow, e.g., "sales-report-20250611"
-  name: "sales-report-{{ ds_nodash }}"
-  namespace: {{ params.spark_job_namespace }}
+  name: spark-test
+  namespace: spark-job
 spec:
   type: Python
   mode: cluster
-  image: "{{ params.spark_image }}" # Use a parameter for the image
+  image: localhost:5000/spark-s3:3.5.1
   imagePullPolicy: Always
-  mainApplicationFile: "{{ params.main_application_file }}"
-  sparkVersion: "3.5.1"
+  mainApplicationFile: s3a://spark-apps/spark-test.py
+  sparkVersion: 3.5.1
   
   sparkConf:
-    # --- We removed the hardcoded access/secret keys from here ---
-    # The S3A connector will automatically use the AWS_... environment variables
-    "spark.hadoop.fs.s3a.endpoint": "{{ params.minio_endpoint_url }}"
+    "spark.hadoop.fs.s3a.endpoint": "http://minio.minio:9000"
+    "spark.hadoop.fs.s3a.access.key": "minioadmin"
+    "spark.hadoop.fs.s3a.secret.key": "minioadmin"
     "spark.hadoop.fs.s3a.path.style.access": "true"
     "spark.hadoop.fs.s3a.fast.upload": "true"
     "spark.hadoop.fs.s3a.impl": "org.apache.hadoop.fs.s3a.S3AFileSystem"
@@ -29,13 +28,12 @@ spec:
       version: 3.5.1
     cores: 1
     memory: 2g
-    serviceAccount: spark-operator-spark # Using the service account you specified
-    # --- This is the SECURE way to inject credentials ---
-    envFrom:
-      - secretRef:
-          # This references the Kubernetes secret holding your MinIO credentials
-          name: minio-s3-creds
-    # Your full security context is preserved
+    serviceAccount: spark-operator-spark
+    env:
+      - name: AWS_ACCESS_KEY_ID
+        value: "minioadmin"
+      - name: AWS_SECRET_ACCESS_KEY
+        value: "minioadmin"
     securityContext:
       capabilities:
         drop:
@@ -53,10 +51,11 @@ spec:
     instances: 2
     cores: 1
     memory: 2g
-    # --- Injecting credentials into executors as well ---
-    envFrom:
-      - secretRef:
-          name: minio-s3-creds
+    env:
+      - name: AWS_ACCESS_KEY_ID
+        value: "minioadmin"
+      - name: AWS_SECRET_ACCESS_KEY
+        value: "minioadmin"
     securityContext:
       capabilities:
         drop:

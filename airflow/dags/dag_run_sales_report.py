@@ -13,13 +13,13 @@ SPARK_SCRIPT_PATH = "s3a://spark-apps/spark-test.py"
     schedule=None,
     catchup=False,
     doc_md="Runs a Spark sales report job using a YAML template from the filesystem.",
-    params={
-        "spark_job_namespace": "spark-job",
-        "minio_endpoint_url": "http://minio.minio:9000",
-        "spark_image": "localhost:5000/spark-s3:3.5.1",
-        "main_application_file": SPARK_SCRIPT_PATH, 
-    },
     tags=["spark", "kubernetes", "reporting"],
+    # params={
+    #     "spark_job_namespace": "spark-job",
+    #     "minio_endpoint_url": "http://minio.minio:9000",
+    #     "spark_image": "localhost:5000/spark-s3:3.5.1",
+    #     "main_application_file": SPARK_SCRIPT_PATH, 
+    # },
 )
 def spark_sales_report_dag_v2():
     """
