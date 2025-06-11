@@ -19,7 +19,8 @@ def spark_sales_report_static_dag():
     run_static_spark_report = SparkKubernetesOperator(
         task_id="run_static_sales_report_job",
         namespace="spark-operator", # Namespace where the Spark Operator is running
-        application_file="sales_report_static_job.yaml",
+        # This now points to your static YAML file
+        application_file="spark-operator/sales_report_static_job.yaml",
         kubernetes_conn_id="kubernetes_default",
     )
 
