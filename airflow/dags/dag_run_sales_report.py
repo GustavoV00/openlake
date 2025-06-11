@@ -4,34 +4,24 @@ import pendulum
 from airflow.decorators import dag
 from airflow.providers.cncf.kubernetes.operators.spark_kubernetes import SparkKubernetesOperator
 
-# This constant can stay here for clarity
-SPARK_SCRIPT_PATH = "s3a://spark-apps/spark-test.py"
-
 @dag(
-    dag_id="spark_sales_report_generator_v2",
+    dag_id="spark_sales_report_static",
     start_date=pendulum.datetime(2025, 6, 11, tz="UTC"),
     schedule=None,
     catchup=False,
-    doc_md="Runs a Spark sales report job using a YAML template from the filesystem.",
-    tags=["spark", "kubernetes", "reporting"],
-    # params={
-    #     "spark_job_namespace": "spark-job",
-    #     "minio_endpoint_url": "http://minio.minio:9000",
-    #     "spark_image": "localhost:5000/spark-s3:3.5.1",
-    #     "main_application_file": SPARK_SCRIPT_PATH, 
-    # },
+    doc_md="Runs a static Spark sales report job.",
+    tags=["spark", "kubernetes", "static"],
 )
-def spark_sales_report_dag_v2():
+def spark_sales_report_static_dag():
     """
-    This DAG defines a task to run the Spark sales report job.
-    It uses a clean, templated approach for the SparkApplication definition.
+    This DAG runs a completely static Spark job defined in a separate YAML file.
     """
-    run_spark_report = SparkKubernetesOperator(
-        task_id="run_sales_report_job",
-        namespace="spark-operator",
-        application_file="spark-operator/sales_report_job.yaml",
-        # 'template_vars' has been removed from here
+    run_static_spark_report = SparkKubernetesOperator(
+        task_id="run_static_sales_report_job",
+        namespace="spark-operator", # Namespace where the Spark Operator is running
+        # This now points to your static YAML file
+        application_file="templates/sales_report_static_job.yaml",
         kubernetes_conn_id="kubernetes_default",
     )
 
-spark_sales_report_dag_v2()
+spark_sales_report_static_dag()
