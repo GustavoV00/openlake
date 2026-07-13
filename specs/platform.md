@@ -117,7 +117,11 @@ openbrick/
 
 - **Contract:** every consumer talks S3A to a single endpoint env var
   (`S3_ENDPOINT`) with path-style access. Buckets `raw`, `warehouse`.
-- **kind:** MinIO tenant provides the S3 API in-cluster. Static creds via Secret.
+- **kind:** MinIO provides the S3 API in-cluster. Static creds via Secret. OpenLake
+  uses the **standalone `minio` chart** (M2, simplest for single-node kind). The
+  `databricks-spark` reference instead uses the MinIO **operator + tenant** charts
+  (both v7.0.0, tenant CR declares buckets/creds).
+  `ponytail: standalone now, switch to operator+tenant only if MinIO needs multi-node/managed.`
 - **aws:** real S3; endpoint is the AWS regional endpoint; **no static creds** —
   Spark/Trino/Airflow service accounts are IRSA-annotated to assume an IAM role
   scoped to the two buckets.
@@ -134,12 +138,60 @@ openbrick/
 
 ### 4.5 Spark Operator (`processing` ns)
 
-- `sparkoperator.k8s.io/v1beta2` via Helm.
-- Custom Spark image (Spark 3.5.x) with: hadoop-aws + aws-sdk (S3A), Iceberg
-  Spark runtime, JMX Prometheus exporter. Reuse the proven image recipe from the
-  `databricks-spark` reference project.
+- **Operator:** kubeflow `spark-operator` Helm chart **2.1.1** (appVersion 2.1.1),
+  CRD API `sparkoperator.k8s.io/v1beta2`. Key values:
+  `spark.jobNamespaces: [processing]`, SA `spark-operator-spark` (`rbac.create: true`),
+  `webhook.enable: true` (port `9443`), `prometheus.metrics.enable: true` (port `8080`),
+  `controller.replicas: 1` on kind / 3 on aws. The aws overlay adds a hardened
+  container securityContext + `nodeAffinity` on
+  `eks.amazonaws.com/capacityType In [ON_DEMAND]`.
+
+- **Custom Spark image** — extends the `databricks-spark` reference recipe:
+  - Base `spark:3.5.3` (official Apache).
+  - S3A jars: `hadoop-common:3.3.4`, `hadoop-aws:3.3.4`, `aws-java-sdk-bundle:1.12.431`.
+    `ponytail: pin one aws-sdk version — reference apps also referenced 1.11.900 via`
+    `spark.jars.packages; use the baked 1.12.431 to avoid classpath skew.`
+  - `jmx_prometheus_javaagent:0.11.0` at `/prometheus/`.
+  - Baked metrics config at `/etc/metrics/conf/{metrics.properties,prometheus.yaml}`.
+  - **OpenLake adds (not in the reference, which is Parquet-only):**
+    `iceberg-spark-runtime-3.5_2.12` + Iceberg/Hive-Metastore catalog config so jobs
+    write Iceberg to `s3a://warehouse` and register in HMS.
+
+- **S3A config** (in `sparkConf`; endpoint templated per env, creds via Secret not inline):
+  `spark.hadoop.fs.s3a.endpoint`, `…path.style.access=true`,
+  `…impl=org.apache.hadoop.fs.s3a.S3AFileSystem`.
+
 - Jobs pull code via **git-sync init container** (no per-job image rebuilds).
-- SparkApplications write Iceberg to `s3a://warehouse`, register in Hive Metastore.
+
+- **SparkApplication CRD skeleton** (adapted from the reference `labs/lab-7`):
+
+  ```yaml
+  apiVersion: sparkoperator.k8s.io/v1beta2
+  kind: SparkApplication
+  metadata: { name: <job>, namespace: processing }
+  spec:
+    type: Python
+    mode: cluster
+    image: <openlake-spark-image>
+    mainApplicationFile: "local:///app/<job>.py"
+    sparkVersion: "3.5.3"
+    sparkConf:
+      spark.hadoop.fs.s3a.endpoint: "<S3_ENDPOINT>"
+      spark.hadoop.fs.s3a.path.style.access: "true"
+      spark.hadoop.fs.s3a.impl: "org.apache.hadoop.fs.s3a.S3AFileSystem"
+      spark.metrics.conf: "/etc/metrics/conf/metrics.properties"
+      # + OpenLake Iceberg catalog conf (spark.sql.catalog.*, HMS thrift URI)
+    driver:   { cores: 1, memory: 1024m, serviceAccount: spark-operator-spark, envSecretKeyRefs: {...} }
+    executor: { instances: 1, cores: 2, memory: 1024m, envSecretKeyRefs: {...} }
+    dynamicAllocation: { enabled: true, initialExecutors: 1, minExecutors: 1, maxExecutors: 8 }
+    monitoring:
+      exposeDriverMetrics: true
+      exposeExecutorMetrics: true
+      prometheus: { jmxExporterJar: /prometheus/jmx_prometheus_javaagent-0.11.0.jar, port: 8090 }
+  ```
+
+  MinIO/S3 creds injected via `envSecretKeyRefs` → Secret `minio-spark-secret`
+  (`AWS_ACCESS_KEY_ID` / `AWS_SECRET_ACCESS_KEY`); SA `spark-operator-spark`.
 
 ### 4.6 Airflow (`orchestration` ns)
 
@@ -157,8 +209,45 @@ openbrick/
 
 ### 4.8 Monitoring (`monitoring` ns)
 
-- kube-prometheus-stack. Scrapes Spark (JMX :8090), Trino, Airflow metrics.
-  Optional for v1 bring-up but wired in the manifests. `add dashboards later`
+- `kube-prometheus-stack` **69.3.2** (appVersion v0.80.0 = Prometheus Operator).
+  Grafana + default dashboards enabled. Retention 10d, **ephemeral by default** —
+  `ponytail: add PVCs for Prometheus/Grafana if durable metrics/dashboards matter.`
+- **Spark scrape** via `prometheus.prometheusSpec.additionalScrapeConfigs` — 3 static
+  jobs (5s interval) in ns `processing`:
+  `spark-operator → operator-metrics:8080`, `spark-job → job-metrics:8090`,
+  `spark-webhook → webhook-metrics:8080`. These are HTTP metrics endpoints; Spark
+  also exposes its own `prometheusServlet` paths
+  (`/metrics/{driver,executor,applications}/prometheus`). Plus Trino/Airflow metrics.
+- **Sync ordering:** child apps use `argocd.argoproj.io/sync-wave` (monitoring runs
+  after storage, e.g. wave 3) — this is the ordering mechanism for the root app's children.
+
+### 4.9 Pinned versions (from the `databricks-spark` reference)
+
+| Component | Version |
+|---|---|
+| Apache Spark (base image + `sparkVersion`) | 3.5.3 |
+| hadoop-common / hadoop-aws | 3.3.4 |
+| aws-java-sdk-bundle | 1.12.431 |
+| jmx_prometheus_javaagent | 0.11.0 |
+| iceberg-spark-runtime-3.5_2.12 | *(OpenLake add — pin at build)* |
+| kubeflow spark-operator chart | 2.1.1 |
+| kube-prometheus-stack chart | 69.3.2 (appVersion v0.80.0) |
+| MinIO operator/tenant chart *(reference only)* | 7.0.0 |
+| argo-cd chart | 7.8.14 (reference) — OpenLake pins 7.7.11, can bump |
+
+### 4.10 What NOT to copy from the reference
+
+The `databricks-spark` reference is a useful recipe source but diverges from OpenLake —
+do not carry these over:
+
+- **minikube**, not kind (its `modules/minikube` is minikube-specific).
+- **Parquet, no Iceberg, no catalog** — apps write raw Parquet via S3A. OpenLake keeps
+  Iceberg + Hive Metastore; the reference image recipe is only a base to extend.
+- **No app-of-apps** — its ArgoCD leaf apps are applied out-of-band. OpenLake has a real
+  root app (M1).
+- **Vendored charts** referenced by in-repo path. OpenLake pulls charts from remote repos.
+- **Committed live secrets** (an SSH private key + plaintext `minio/minio123` + argocd admin
+  hash). OpenLake keeps secrets out of git — sealed-secrets/SOPS/external-secrets, IRSA on aws.
 
 ---
 

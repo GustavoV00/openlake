@@ -1,0 +1,46 @@
+# M2 — deepstore: MinIO providing the S3 API on kind (buckets raw + warehouse).
+# The cloud env uses real S3 instead, so this Application exists only on kind.
+# ponytail: standalone MinIO via its own chart, not the MinIO Operator/Tenant —
+# an operator is overkill for a single-node local S3.
+apiVersion: argoproj.io/v1alpha1
+kind: Application
+metadata:
+  name: deepstore
+  namespace: gitops
+spec:
+  project: default
+  source:
+    repoURL: https://charts.min.io/
+    chart: minio
+    targetRevision: 5.4.0
+    helm:
+      valuesObject:
+        mode: standalone
+        replicas: 1
+        # Local-only static creds. Mirrored in the metastore S3 secret.
+        # ponytail: plaintext creds fine for local kind; use a sealed/ext secret on aws.
+        rootUser: minioadmin
+        rootPassword: minioadmin
+        buckets:
+          - name: raw
+            policy: none
+            purge: false
+          - name: warehouse
+            policy: none
+            purge: false
+        persistence:
+          enabled: true
+          size: 2Gi
+        resources:
+          requests:
+            cpu: 250m
+            memory: 512Mi
+  destination:
+    server: https://kubernetes.default.svc
+    namespace: deepstore
+  syncPolicy:
+    automated:
+      prune: true
+      selfHeal: true
+    syncOptions:
+      - CreateNamespace=true

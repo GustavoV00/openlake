@@ -19,10 +19,41 @@ resource "helm_release" "argocd" {
   timeout = 600
 }
 
-# App-of-apps: recurses the manifests path and syncs each child Application.
-# Empty dir today = healthy no-op until M2 adds children.
-resource "null_resource" "root_app" {
+# Private-repo credential (HTTPS + PAT). Applied only when repo_token is set;
+# a public repo needs none. Must exist before the root app so ArgoCD can fetch.
+# ponytail: token comes from a gitignored *.auto.tfvars / TF_VAR_repo_token — never committed.
+resource "null_resource" "repo_cred" {
+  count      = var.repo_token == "" ? 0 : 1
   depends_on = [helm_release.argocd]
+
+  triggers = {
+    secret  = sha256("${var.repo_url}${var.repo_username}${var.repo_token}")
+    kubecfg = var.kubeconfig_path
+  }
+
+  provisioner "local-exec" {
+    command = <<-EOT
+      kubectl --kubeconfig '${var.kubeconfig_path}' apply -f - <<'EOF'
+      apiVersion: v1
+      kind: Secret
+      metadata:
+        name: repo-openlake
+        namespace: ${var.namespace}
+        labels:
+          argocd.argoproj.io/secret-type: repository
+      stringData:
+        type: git
+        url: ${var.repo_url}
+        username: ${var.repo_username}
+        password: ${var.repo_token}
+      EOF
+    EOT
+  }
+}
+
+# App-of-apps: recurses the manifests path and syncs each child Application.
+resource "null_resource" "root_app" {
+  depends_on = [helm_release.argocd, null_resource.repo_cred]
 
   triggers = {
     manifest = local.root_app_yaml

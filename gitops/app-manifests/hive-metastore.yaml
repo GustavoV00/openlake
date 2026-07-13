@@ -1,0 +1,53 @@
+# M2 — Hive Metastore: the shared Iceberg catalog. Both Spark (M3) and Trino (M4)
+# register/read tables here. Chart lives in the project's own repo.
+#
+# NOTE: the chart has no published image — build it and load into kind first:
+#   scripts/build-hms-image.sh
+# Until then this Application syncs but the pod stays ImagePullBackOff.
+apiVersion: argoproj.io/v1alpha1
+kind: Application
+metadata:
+  name: hive-metastore
+  namespace: gitops
+spec:
+  project: default
+  source:
+    repoURL: https://github.com/GustavoV00/helm-hive-metastore.git
+    targetRevision: HEAD
+    path: .
+    helm:
+      valuesObject:
+        image:
+          name: hive-metastore
+          tag: "4.2.0"
+          pullPolicy: IfNotPresent   # use the kind-loaded local image
+        database:
+          host: metastore-postgres.metastore.svc.cluster.local
+          port: 5432
+          name: metastore_db
+          existingSecret:
+            name: hive-metastore-db-credentials
+        s3:
+          endpoint: http://minio.deepstore.svc.cluster.local:9000
+          pathStyleAccess: true
+          sslEnabled: false
+          existingSecret:
+            name: hive-metastore-s3-credentials
+        schemaInit:
+          enabled: true
+        resources:
+          requests:
+            cpu: 250m
+            memory: 512Mi
+          limits:
+            cpu: "1"
+            memory: 1Gi
+  destination:
+    server: https://kubernetes.default.svc
+    namespace: metastore
+  syncPolicy:
+    automated:
+      prune: true
+      selfHeal: true
+    syncOptions:
+      - CreateNamespace=true

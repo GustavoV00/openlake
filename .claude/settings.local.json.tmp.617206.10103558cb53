@@ -1,0 +1,15 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(mkdir -p specs)",
+      "Bash(mv SPEC.md specs/platform.md)",
+      "Bash(export KUBECONFIG=terraform/envs/kind/.kube/config)",
+      "Bash(kind get *)",
+      "Bash(kubectl get *)",
+      "Bash(terraform validate *)",
+      "Bash(git commit *)",
+      "Bash(./scripts/load-hms-image.sh *)",
+      "Bash(git add *)"
+    ]
+  }
+}

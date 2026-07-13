@@ -26,6 +26,19 @@ variable "kubeconfig_path" {
   type        = string
 }
 
+variable "repo_token" {
+  description = "GitHub PAT for a private repo (HTTPS). Empty = public repo, no credential applied."
+  type        = string
+  default     = ""
+  sensitive   = true
+}
+
+variable "repo_username" {
+  description = "Username paired with repo_token (any non-empty value for a GitHub PAT)."
+  type        = string
+  default     = "git"
+}
+
 variable "manifests_path" {
   description = "Path within the repo holding child Application manifests."
   type        = string

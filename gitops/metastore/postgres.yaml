@@ -1,0 +1,80 @@
+# In-cluster Postgres backing the Hive Metastore catalog.
+# ponytail: single-replica in-cluster Postgres, 1Gi PVC — matches spec §4.4
+# "in-cluster postgres both envs, move to RDS if durability matters".
+---
+apiVersion: v1
+kind: PersistentVolumeClaim
+metadata:
+  name: metastore-postgres
+  namespace: metastore
+spec:
+  accessModes: [ReadWriteOnce]
+  resources:
+    requests:
+      storage: 1Gi
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: metastore-postgres
+  namespace: metastore
+spec:
+  replicas: 1
+  strategy:
+    type: Recreate
+  selector:
+    matchLabels:
+      app: metastore-postgres
+  template:
+    metadata:
+      labels:
+        app: metastore-postgres
+    spec:
+      containers:
+        - name: postgres
+          image: postgres:16-alpine
+          ports:
+            - containerPort: 5432
+          env:
+            - name: POSTGRES_DB
+              value: metastore_db
+            - name: POSTGRES_USER
+              valueFrom:
+                secretKeyRef:
+                  name: hive-metastore-db-credentials
+                  key: username
+            - name: POSTGRES_PASSWORD
+              valueFrom:
+                secretKeyRef:
+                  name: hive-metastore-db-credentials
+                  key: password
+            - name: PGDATA
+              value: /var/lib/postgresql/data/pgdata
+          volumeMounts:
+            - name: data
+              mountPath: /var/lib/postgresql/data
+          readinessProbe:
+            exec:
+              command: ["pg_isready", "-U", "hive", "-d", "metastore_db"]
+            initialDelaySeconds: 10
+            periodSeconds: 10
+          resources:
+            requests:
+              cpu: 100m
+              memory: 256Mi
+      volumes:
+        - name: data
+          persistentVolumeClaim:
+            claimName: metastore-postgres
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: metastore-postgres
+  namespace: metastore
+spec:
+  selector:
+    app: metastore-postgres
+  ports:
+    - port: 5432
+      targetPort: 5432

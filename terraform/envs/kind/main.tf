@@ -43,6 +43,7 @@ module "argocd" {
   repo_url        = var.repo_url
   target_revision = var.target_revision
   kubeconfig_path = local.kubeconfig
+  repo_token      = var.repo_token
 }
 
 output "argocd_ui" {

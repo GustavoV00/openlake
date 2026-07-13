@@ -4,6 +4,8 @@
 *.tfstate.*
 crash.log
 *.tfvars.local
+# Secret var files (auto-loaded by terraform, e.g. the ArgoCD repo PAT)
+*.auto.tfvars
 .kube/
 
 # Keep provider lock files and shared tfvars committed

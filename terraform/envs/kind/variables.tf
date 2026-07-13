@@ -20,3 +20,10 @@ variable "target_revision" {
   type        = string
   default     = "HEAD"
 }
+
+variable "repo_token" {
+  description = "GitHub PAT for the private repo. Set via TF_VAR_repo_token or a gitignored *.auto.tfvars."
+  type        = string
+  default     = ""
+  sensitive   = true
+}
