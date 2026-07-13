@@ -1,0 +1,74 @@
+kind: Cluster
+apiVersion: kind.x-k8s.io/v1alpha4
+name: arch-dev-cluster
+
+networking:
+  ipFamily: ipv4
+  apiServerAddress: "127.0.0.1"
+  apiServerPort: 6443
+  # If you want to use a custom CNI (like Calico or Cilium) instead of the default Kindnet:
+  # disableDefaultCNI: true
+
+# 2. Node Topology Configuration
+nodes:
+  # ==========================================
+  # NODE 1: The Control Plane
+  # ==========================================
+  - role: control-plane
+    # Pinning the node image ensures your cluster doesn't break if kind updates its default
+    image: kindest/node:v1.29.2
+    
+    # Port Mappings: Critical for testing Ingress locally.
+    # This maps the Docker container's ports to your Arch Linux host's ports.
+    extraPortMappings:
+      - containerPort: 80
+        hostPort: 80
+        protocol: TCP
+      - containerPort: 443
+        hostPort: 443
+        protocol: TCP
+        
+    # Extra Mounts: Mount a directory from your Arch filesystem directly into the node.
+    # Useful for persistent data or sideloading configurations.
+    extraMounts:
+      - hostPath: /tmp/k8s-local-mount
+        containerPath: /var/lib/k8s-data
+        
+    # Kubeadm Patches: Modify the underlying Kubernetes components (API server, scheduler, etc.)
+    # Here, we ensure standard admission controllers are enabled for webhook testing.
+    kubeadmConfigPatches:
+      - |
+        kind: ClusterConfiguration
+        apiServer:
+          extraArgs:
+            "enable-admission-plugins": "NodeRestriction,MutatingAdmissionWebhook,ValidatingAdmissionWebhook"
+            
+    # Node Labels specifically for the control plane to allow Ingress controllers to schedule here
+    kubeadmConfigPatchesJSON6902:
+      - group: kubeadm.k8s.io
+        version: v1beta3
+        kind: InitConfiguration
+        patch: |
+          - op: add
+            path: /nodeRegistration/kubeletExtraArgs
+            value:
+              node-labels: "ingress-ready=true"
+
+  # ==========================================
+  # NODE 2: Worker Node (Frontend)
+  # ==========================================
+  - role: worker
+    image: kindest/node:v1.29.2
+    # Apply labels to nodes so you can use nodeSelector or affinity in your pod manifests
+    labels:
+      tier: frontend
+      workload: web
+
+  # ==========================================
+  # NODE 3: Worker Node (Backend/Data)
+  # ==========================================
+  - role: worker
+    image: kindest/node:v1.29.2
+    labels:
+      tier: backend
+      workload: database
