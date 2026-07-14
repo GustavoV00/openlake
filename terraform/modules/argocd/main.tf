@@ -27,7 +27,7 @@ resource "null_resource" "repo_cred" {
   depends_on = [helm_release.argocd]
 
   triggers = {
-    secret  = sha256("${var.repo_url}${var.repo_username}${var.repo_token}")
+    secret  = sha256("${var.cred_repo_url}${var.repo_username}${var.repo_token}")
     kubecfg = var.kubeconfig_path
   }
 
@@ -37,13 +37,13 @@ resource "null_resource" "repo_cred" {
       apiVersion: v1
       kind: Secret
       metadata:
-        name: repo-openlake
+        name: repo-hive-metastore
         namespace: ${var.namespace}
         labels:
           argocd.argoproj.io/secret-type: repository
       stringData:
         type: git
-        url: ${var.repo_url}
+        url: ${var.cred_repo_url}
         username: ${var.repo_username}
         password: ${var.repo_token}
       EOF

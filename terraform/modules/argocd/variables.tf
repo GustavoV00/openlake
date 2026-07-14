@@ -27,7 +27,7 @@ variable "kubeconfig_path" {
 }
 
 variable "repo_token" {
-  description = "GitHub PAT for a private repo (HTTPS). Empty = public repo, no credential applied."
+  description = "GitHub PAT for a private repo pulled by ArgoCD (the hive-metastore chart repo). Empty = no credential applied."
   type        = string
   default     = ""
   sensitive   = true
@@ -37,6 +37,12 @@ variable "repo_username" {
   description = "Username paired with repo_token (any non-empty value for a GitHub PAT)."
   type        = string
   default     = "git"
+}
+
+variable "cred_repo_url" {
+  description = "Repo the PAT credential authenticates against. The openlake app repo is public; the credential is for the private hive-metastore chart repo."
+  type        = string
+  default     = "https://github.com/GustavoV00/helm-hive-metastore.git"
 }
 
 variable "manifests_path" {
