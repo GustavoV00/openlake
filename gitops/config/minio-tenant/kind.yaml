@@ -2,9 +2,9 @@
 # doesn't exist (real S3 is used), so there's no base/aws split: just this file.
 #
 # Deployed into namespace `deepstore`, so the operator's S3 Service is
-# `minio.deepstore.svc.cluster.local:9000` — the exact endpoint HMS already
-# targets (gitops/config/hive-metastore/kind.yaml). Don't rename the namespace
-# without updating that.
+# `minio.deepstore.svc.cluster.local:80` (Service port 80 → targetPort 9000) —
+# the endpoint HMS targets (gitops/config/hive-metastore/kind.yaml). Don't rename
+# the namespace without updating that.
 tenant:
   name: deepstore
   # Single-node, single-drive (SNSD): servers=1, volumesPerServer=1.
@@ -20,8 +20,8 @@ tenant:
     name: deepstore-env-configuration
     accessKey: minioadmin
     secretKey: minioadmin
-  # Plain HTTP S3 on :9000 — matches the http:// endpoint HMS uses. autoCert
-  # would force TLS and break that.
+  # Plain HTTP S3 (Service :80 → pod :9000) — matches the http:// endpoint HMS
+  # uses. autoCert would force TLS and break that.
   certificate:
     requestAutoCert: false
   buckets:

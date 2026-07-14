@@ -11,13 +11,26 @@ database:
   existingSecret:
     name: hive-metastore-db-credentials
 s3:
-  endpoint: http://minio.deepstore.svc.cluster.local:9000
+  # Operator tenant S3 Service listens on :80 (targetPort 9000), not :9000.
+  endpoint: http://minio.deepstore.svc.cluster.local:80
   pathStyleAccess: true
   sslEnabled: false
   existingSecret:
     name: hive-metastore-s3-credentials
 schemaInit:
+  # ponytail: idempotent (-info || -initSchema); with >1 replica each pod runs it
+  # on start. Safe once the schema exists; a truly-empty DB with 2 pods starting
+  # at once could race on -initSchema. Init once manually if that ever bites.
   enabled: true
+# HPA owns the replica count (chart omits static replicas when autoscaling.enabled),
+# so minReplicas is the floor. Needs metrics-server for CPU/mem targets to actually
+# scale; without it, replicas hold at minReplicas.
+autoscaling:
+  enabled: true
+  minReplicas: 2
+  maxReplicas: 4
+  targetCPUUtilizationPercentage: 90
+  targetMemoryUtilizationPercentage: 90
 resources:
   requests:
     cpu: 250m
