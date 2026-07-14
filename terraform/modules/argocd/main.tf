@@ -51,36 +51,9 @@ resource "null_resource" "repo_cred" {
   }
 }
 
-# Declare public Helm chart repos as type=helm. Without this, ArgoCD treats a
-# `chart:` source's repoURL as git and fails with "repository not found" on a
-# git fetch (hit on the deepstore/MinIO multi-source app). No auth needed.
-resource "null_resource" "helm_repos" {
-  depends_on = [helm_release.argocd]
-
-  triggers = { kubecfg = var.kubeconfig_path }
-
-  provisioner "local-exec" {
-    command = <<-EOT
-      kubectl --kubeconfig '${var.kubeconfig_path}' apply -f - <<'EOF'
-      apiVersion: v1
-      kind: Secret
-      metadata:
-        name: repo-minio
-        namespace: ${var.namespace}
-        labels:
-          argocd.argoproj.io/secret-type: repository
-      stringData:
-        type: helm
-        name: minio
-        url: https://charts.min.io/
-      EOF
-    EOT
-  }
-}
-
 # App-of-apps: recurses the manifests path and syncs each child Application.
 resource "null_resource" "root_app" {
-  depends_on = [helm_release.argocd, null_resource.repo_cred, null_resource.helm_repos]
+  depends_on = [helm_release.argocd, null_resource.repo_cred]
 
   triggers = {
     manifest = local.root_app_yaml

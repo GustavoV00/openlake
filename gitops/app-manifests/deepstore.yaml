@@ -3,8 +3,9 @@
 # ponytail: standalone MinIO via its own chart, not the MinIO Operator/Tenant —
 # an operator is overkill for a single-node local S3.
 #
-# Multi-source: chart pulled from the MinIO Helm repo; config lives in this repo
-# under gitops/config/deepstore/ (exposed as $values), not inline here.
+# Multi-source: chart is VENDORED (pristine upstream minio 5.4.0) under
+# gitops/helm-charts/deepstore — no external charts.min.io fetch. Our config lives
+# in gitops/config/deepstore/ (exposed as $values), not inline or in the chart.
 apiVersion: argoproj.io/v1alpha1
 kind: Application
 metadata:
@@ -16,9 +17,9 @@ spec:
     - repoURL: https://github.com/GustavoV00/openlake.git
       targetRevision: HEAD
       ref: values
-    - repoURL: https://charts.min.io/
-      chart: minio
-      targetRevision: 5.4.0
+    - repoURL: https://github.com/GustavoV00/openlake.git
+      targetRevision: HEAD
+      path: gitops/helm-charts/deepstore
       helm:
         valueFiles:
           - $values/gitops/config/deepstore/kind.yaml
