@@ -5,7 +5,7 @@ image:
   tag: "4.2.0"
   pullPolicy: IfNotPresent   # use the kind-loaded local image
 database:
-  host: CHANGE_ME.postgres.example.com   # TODO: external Postgres endpoint
+  host: metastore-pg   # external Postgres container on kind's docker network — scripts/local-postgres.sh
   port: 5432
   name: metastore_db
   existingSecret:
