@@ -1,0 +1,22 @@
+# deepstore (MinIO) config — kind only. On aws this component doesn't exist
+# (real S3 is used), so there's no base/aws split: just this one file.
+# ponytail: plaintext creds fine for local kind; use a sealed/ext secret on aws.
+mode: standalone
+replicas: 1
+# Local-only static creds. Mirrored in the metastore S3 secret.
+rootUser: minioadmin
+rootPassword: minioadmin
+buckets:
+  - name: raw
+    policy: none
+    purge: false
+  - name: warehouse
+    policy: none
+    purge: false
+persistence:
+  enabled: true
+  size: 2Gi
+resources:
+  requests:
+    cpu: 250m
+    memory: 512Mi

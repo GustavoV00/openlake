@@ -1,0 +1,27 @@
+# Hive Metastore config — kind only. At M6, split the env-agnostic parts into a
+# base.yaml and add aws.yaml (published image + IRSA instead of the static S3 secret).
+image:
+  name: hive-metastore
+  tag: "4.2.0"
+  pullPolicy: IfNotPresent   # use the kind-loaded local image
+database:
+  host: CHANGE_ME.postgres.example.com   # TODO: external Postgres endpoint
+  port: 5432
+  name: metastore_db
+  existingSecret:
+    name: hive-metastore-db-credentials
+s3:
+  endpoint: http://minio.deepstore.svc.cluster.local:9000
+  pathStyleAccess: true
+  sslEnabled: false
+  existingSecret:
+    name: hive-metastore-s3-credentials
+schemaInit:
+  enabled: true
+resources:
+  requests:
+    cpu: 250m
+    memory: 512Mi
+  limits:
+    cpu: "1"
+    memory: 1Gi
