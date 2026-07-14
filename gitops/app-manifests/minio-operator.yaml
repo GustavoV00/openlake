@@ -1,0 +1,35 @@
+# M2 — minio-operator: the MinIO Operator (Tenant CRDs + controller) on kind.
+# Wave -1 so it (and the CRDs) is Healthy before the tenant Application (wave 0)
+# tries to create a Tenant CR.
+#
+# Multi-source: chart is VENDORED (pristine upstream operator 7.1.1) under
+# gitops/helm-charts/minio-operator. Config lives in gitops/config/minio-operator/.
+apiVersion: argoproj.io/v1alpha1
+kind: Application
+metadata:
+  name: minio-operator
+  namespace: gitops
+  annotations:
+    argocd.argoproj.io/sync-wave: "-1"
+spec:
+  project: default
+  sources:
+    - repoURL: https://github.com/GustavoV00/openlake.git
+      targetRevision: HEAD
+      ref: values
+    - repoURL: https://github.com/GustavoV00/openlake.git
+      targetRevision: HEAD
+      path: gitops/helm-charts/minio-operator
+      helm:
+        valueFiles:
+          - $values/gitops/config/minio-operator/kind.yaml
+  destination:
+    server: https://kubernetes.default.svc
+    namespace: minio-operator
+  syncPolicy:
+    automated:
+      prune: true
+      selfHeal: true
+    syncOptions:
+      - CreateNamespace=true
+      - ServerSideApply=true

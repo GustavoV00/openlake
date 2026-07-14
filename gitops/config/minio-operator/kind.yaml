@@ -1,0 +1,5 @@
+# minio-operator config — kind only. The operator (CRDs + controller) is
+# cluster-scoped and identical on aws, but we run 1 replica locally instead of
+# the chart default 2 (no HA needed on a single-node kind).
+operator:
+  replicaCount: 1
