@@ -1,0 +1,27 @@
+# Trino config — kind. 1 coordinator + 1 worker, Iceberg connector pointed at the
+# SAME Hive Metastore + MinIO warehouse that Spark writes (spec §4.7). At M6 split
+# the env-agnostic parts into base.yaml; aws swaps the S3 creds for IRSA.
+server:
+  workers: 1
+# 8G default heap is too big for kind — cut both roles down.
+coordinator:
+  jvm:
+    maxHeapSize: "2G"
+worker:
+  jvm:
+    maxHeapSize: "2G"
+# The Iceberg catalog. Same HMS thrift + MinIO endpoint as hive-metastore/kind.yaml
+# and the spark job — so `iceberg.smoke.demo` is the table the M3 job wrote.
+# ponytail: plaintext S3 creds inline for kind (rendered into a ConfigMap), same
+# as the metastore secret; aws overlay uses fs.native-s3 with IRSA, no keys.
+catalogs:
+  iceberg: |
+    connector.name=iceberg
+    iceberg.catalog.type=hive_metastore
+    hive.metastore.uri=thrift://hive-metastore.metastore.svc.cluster.local:9083
+    fs.native-s3.enabled=true
+    s3.endpoint=http://minio.deepstore.svc.cluster.local:80
+    s3.path-style-access=true
+    s3.region=us-east-1
+    s3.aws-access-key=minioadmin
+    s3.aws-secret-key=minioadmin

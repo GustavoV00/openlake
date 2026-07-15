@@ -17,7 +17,7 @@ spec:
   sparkVersion: "4.0.2"
   sparkConf:
     # --- S3A → deepstore MinIO ---
-    spark.hadoop.fs.s3a.endpoint: "http://minio.deepstore.svc.cluster.local:9000"
+    spark.hadoop.fs.s3a.endpoint: "http://minio.deepstore.svc.cluster.local:80"
     spark.hadoop.fs.s3a.path.style.access: "true"
     spark.hadoop.fs.s3a.impl: "org.apache.hadoop.fs.s3a.S3AFileSystem"
     spark.hadoop.fs.s3a.connection.ssl.enabled: "false"

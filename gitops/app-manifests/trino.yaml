@@ -1,0 +1,34 @@
+# M4 — Trino: interactive SQL over the Iceberg tables Spark writes, through the
+# same Hive Metastore + MinIO warehouse. Chart VENDORED (pristine upstream 1.42.2,
+# Trino 480) under gitops/helm-charts/trino; config in gitops/config/trino.
+#
+# Wave 2 — after the metastore (wave 0) and spark-operator (wave 1) so the catalog
+# it points at exists.
+apiVersion: argoproj.io/v1alpha1
+kind: Application
+metadata:
+  name: trino
+  namespace: gitops
+  annotations:
+    argocd.argoproj.io/sync-wave: "2"
+spec:
+  project: default
+  sources:
+    - repoURL: https://github.com/GustavoV00/openlake.git
+      targetRevision: HEAD
+      ref: values
+    - repoURL: https://github.com/GustavoV00/openlake.git
+      targetRevision: HEAD
+      path: gitops/helm-charts/trino
+      helm:
+        valueFiles:
+          - $values/gitops/config/trino/kind.yaml
+  destination:
+    server: https://kubernetes.default.svc
+    namespace: query
+  syncPolicy:
+    automated:
+      prune: true
+      selfHeal: true
+    syncOptions:
+      - CreateNamespace=true
