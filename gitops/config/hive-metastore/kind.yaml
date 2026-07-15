@@ -18,10 +18,6 @@ s3:
   sslEnabled: false
   existingSecret:
     name: hive-metastore-s3-credentials
-# The chart's metastore-site template hardcodes metastore.task.threads.always with
-# MaterializationsCacheCleanerTask — a 4.x-only class absent in 3.1.3 (crashes HMS
-# init). Override with the real 3.1.3 default (appended later in the XML → wins).
-extraConfParams: "metastore.task.threads.always:org.apache.hadoop.hive.metastore.events.EventCleanerTask,org.apache.hadoop.hive.metastore.RuntimeStatsCleanerTask"
 schemaInit:
   # ponytail: idempotent (-info || -initSchema); with >1 replica each pod runs it
   # on start. Safe once the schema exists; a truly-empty DB with 2 pods starting

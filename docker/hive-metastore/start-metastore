@@ -2,4 +2,12 @@
 # Launch the Hive 3.1.3 metastore. Config comes from HIVE_CONF_DIR
 # (/opt/hive-metastore/conf/metastore-site.xml, rendered by render-config.sh);
 # S3A jars are on HADOOP_CLASSPATH — both are set in the image ENV.
+
+# The chart template hardcodes metastore.task.threads.always with
+# MaterializationsCacheCleanerTask, a 4.x-only class absent in 3.1.3 (crashes HMS
+# init). Drop it here — the chart's extraConfParams override is unusable (its
+# key:value parser mangles the property name). EventCleanerTask alone suffices.
+sed -i 's#,org\.apache\.hadoop\.hive\.metastore\.MaterializationsCacheCleanerTask##' \
+    "${METASTORE_HOME}/conf/metastore-site.xml"
+
 exec /opt/hive/bin/hive --service metastore
