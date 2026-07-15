@@ -11,8 +11,7 @@ database:
   existingSecret:
     name: hive-metastore-db-credentials
 s3:
-  # Operator tenant S3 Service listens on :80 (targetPort 9000), not :9000.
-  endpoint: http://minio.deepstore.svc.cluster.local:80
+  endpoint: http://minio.deepstore.svc.cluster.local:9000
   pathStyleAccess: true
   sslEnabled: false
   existingSecret:
