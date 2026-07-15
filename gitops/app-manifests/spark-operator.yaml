@@ -1,0 +1,38 @@
+# M3 — Spark Operator: kubeflow spark-operator, runs SparkApplication CRDs in the
+# `processing` ns. Chart is VENDORED (pristine upstream 2.1.1) under
+# gitops/helm-charts/spark-operator, same pattern as minio-operator; config lives
+# in gitops/config/spark-operator/.
+#
+# Wave 1 so it lands after storage (wave -1/0) and the metastore are Healthy.
+# The operator only installs the controller + CRDs + the spark-operator-spark SA;
+# actual jobs (jobs/spark/*.yaml) are applied out-of-band, not GitOps-synced —
+# they're one-shot, not desired-state.
+apiVersion: argoproj.io/v1alpha1
+kind: Application
+metadata:
+  name: spark-operator
+  namespace: gitops
+  annotations:
+    argocd.argoproj.io/sync-wave: "1"
+spec:
+  project: default
+  sources:
+    - repoURL: https://github.com/GustavoV00/openlake.git
+      targetRevision: HEAD
+      ref: values
+    - repoURL: https://github.com/GustavoV00/openlake.git
+      targetRevision: HEAD
+      path: gitops/helm-charts/spark-operator
+      helm:
+        valueFiles:
+          - $values/gitops/config/spark-operator/kind.yaml
+  destination:
+    server: https://kubernetes.default.svc
+    namespace: processing
+  syncPolicy:
+    automated:
+      prune: true
+      selfHeal: true
+    syncOptions:
+      - CreateNamespace=true
+      - ServerSideApply=true

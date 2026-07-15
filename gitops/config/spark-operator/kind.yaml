@@ -1,0 +1,23 @@
+# spark-operator values — kind. Env-agnostic enough that M6 can likely reuse it
+# as base.yaml; the aws overlay adds controller.replicas: 3 + a hardened
+# securityContext + ON_DEMAND nodeAffinity (spec §4.5).
+spark:
+  # Watch only `processing` for SparkApplications; jobs land here.
+  jobNamespaces:
+    - processing
+  serviceAccount:
+    create: true
+    name: spark-operator-spark
+controller:
+  replicas: 1
+webhook:
+  enable: true
+  port: 9443
+# jmx/servlet scraping is wired at M7; enabling the operator's own metrics port
+# now is free and lets M7 just add scrape configs.
+prometheus:
+  metrics:
+    enable: true
+    port: 8080
+rbac:
+  create: true

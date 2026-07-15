@@ -1,0 +1,46 @@
+# M3 verification job — writes an Iceberg table to s3a://warehouse via HMS.
+# Apply out-of-band (not GitOps): jobs are one-shot, not desired-state.
+#   kubectl apply -f jobs/spark/minio-spark-secret.yaml
+#   kubectl apply -f jobs/spark/warehouse-smoke.yaml
+#   kubectl logs -n processing warehouse-smoke-driver -f   # look for "SMOKE OK"
+apiVersion: sparkoperator.k8s.io/v1beta2
+kind: SparkApplication
+metadata:
+  name: warehouse-smoke
+  namespace: processing
+spec:
+  type: Python
+  mode: cluster
+  image: openlake-spark:4.0.2
+  imagePullPolicy: IfNotPresent   # kind-loaded local image, no registry
+  mainApplicationFile: "local:///app/warehouse_smoke.py"
+  sparkVersion: "4.0.2"
+  sparkConf:
+    # --- S3A → deepstore MinIO ---
+    spark.hadoop.fs.s3a.endpoint: "http://minio.deepstore.svc.cluster.local:9000"
+    spark.hadoop.fs.s3a.path.style.access: "true"
+    spark.hadoop.fs.s3a.impl: "org.apache.hadoop.fs.s3a.S3AFileSystem"
+    spark.hadoop.fs.s3a.connection.ssl.enabled: "false"
+    # Creds come from AWS_* env (envSecretKeyRefs below), not inline. SDK v2 class
+    # (Hadoop 3.4.1 S3A) — reads AWS_ACCESS_KEY_ID / AWS_SECRET_ACCESS_KEY.
+    spark.hadoop.fs.s3a.aws.credentials.provider: "software.amazon.awssdk.auth.credentials.EnvironmentVariableCredentialsProvider"
+    # --- Iceberg catalog "warehouse" backed by Hive Metastore ---
+    spark.sql.extensions: "org.apache.iceberg.spark.extensions.IcebergSparkSessionExtensions"
+    spark.sql.catalog.warehouse: "org.apache.iceberg.spark.SparkCatalog"
+    spark.sql.catalog.warehouse.type: "hive"
+    spark.sql.catalog.warehouse.uri: "thrift://hive-metastore.metastore.svc.cluster.local:9083"
+    spark.sql.catalog.warehouse.warehouse: "s3a://warehouse/"
+  driver:
+    cores: 1
+    memory: "1024m"
+    serviceAccount: spark-operator-spark
+    envSecretKeyRefs:
+      AWS_ACCESS_KEY_ID: { name: minio-spark-secret, key: AWS_ACCESS_KEY_ID }
+      AWS_SECRET_ACCESS_KEY: { name: minio-spark-secret, key: AWS_SECRET_ACCESS_KEY }
+  executor:
+    instances: 1
+    cores: 1
+    memory: "1024m"
+    envSecretKeyRefs:
+      AWS_ACCESS_KEY_ID: { name: minio-spark-secret, key: AWS_ACCESS_KEY_ID }
+      AWS_SECRET_ACCESS_KEY: { name: minio-spark-secret, key: AWS_SECRET_ACCESS_KEY }
