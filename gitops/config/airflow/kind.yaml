@@ -1,0 +1,45 @@
+# Airflow config — kind. M5: first orchestration-layer component (spec §4.6).
+# KubernetesExecutor (no Celery/Redis — fewer moving parts).
+# ponytail: KubernetesExecutor, revisit only if scheduler throughput is a problem.
+executor: "KubernetesExecutor"
+
+images:
+  airflow:
+    repository: openlake-airflow
+    tag: "3.2.2"
+    pullPolicy: IfNotPresent   # kind-loaded local image, no registry
+
+# DAGs delivered via git-sync from the repo root (not just jobs/airflow/dags/):
+# warehouse_smoke_dag.py loads jobs/spark/warehouse-smoke.yaml directly so the
+# DAG and the manually-applied SparkApplication manifest never drift. Repo-root
+# .airflowignore keeps Airflow from trying to parse the other .py files that
+# come along for the ride.
+dags:
+  gitSync:
+    enabled: true
+    repo: https://github.com/GustavoV00/openlake.git
+    branch: main
+    rev: HEAD
+    ref: main
+    subPath: ""
+    depth: 1
+
+
+# Single-node kind cluster — no HA, cut resources down like trino/kind.yaml.
+webserver:
+  resources:
+    requests: { cpu: "250m", memory: "512Mi" }
+    limits: { memory: "1Gi" }
+scheduler:
+  resources:
+    requests: { cpu: "250m", memory: "512Mi" }
+    limits: { memory: "1Gi" }
+triggerer:
+  resources:
+    requests: { cpu: "100m", memory: "256Mi" }
+    limits: { memory: "512Mi" }
+
+postgresql:
+  primary:
+    persistence:
+      size: 2Gi

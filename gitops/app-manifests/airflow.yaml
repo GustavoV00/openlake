@@ -1,0 +1,42 @@
+# M5 — Airflow: orchestration layer, DAG submits the M3 Spark smoke job and
+# checks the result via Trino (M4). Chart VENDORED (pristine upstream 1.22.0,
+# Airflow 3.2.2) under gitops/helm-charts/airflow; config in gitops/config/airflow.
+#
+# Wave 3 — after spark-operator (wave 1) and trino (wave 2), since the DAG
+# submits a SparkApplication and queries Trino.
+#
+# 3-source, same shape as hive-metastore.yaml: values alias, the vendored
+# chart with a valueFiles override, and a raw-manifests path for the
+# cross-namespace RBAC the chart itself can't produce (see
+# gitops/config/airflow/rbac.yaml).
+apiVersion: argoproj.io/v1alpha1
+kind: Application
+metadata:
+  name: airflow
+  namespace: gitops
+  annotations:
+    argocd.argoproj.io/sync-wave: "3"
+spec:
+  project: default
+  sources:
+    - repoURL: https://github.com/GustavoV00/openlake.git
+      targetRevision: HEAD
+      ref: values
+    - repoURL: https://github.com/GustavoV00/openlake.git
+      targetRevision: HEAD
+      path: gitops/helm-charts/airflow
+      helm:
+        valueFiles:
+          - $values/gitops/config/airflow/kind.yaml
+    - repoURL: https://github.com/GustavoV00/openlake.git
+      targetRevision: HEAD
+      path: gitops/config/airflow/manifests
+  destination:
+    server: https://kubernetes.default.svc
+    namespace: orchestration
+  syncPolicy:
+    automated:
+      prune: true
+      selfHeal: true
+    syncOptions:
+      - CreateNamespace=true

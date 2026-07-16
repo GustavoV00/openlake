@@ -1,0 +1,32 @@
+# M5 — grants the Airflow KubernetesExecutor worker pod (SA "airflow-worker" in
+# the orchestration namespace, chart default naming) permission to submit and
+# watch the SparkApplication the warehouse_smoke_dag creates in `processing`.
+# The chart's own RBAC only covers its own release namespace, so this is a
+# separate raw manifest (same delivery pattern as hive-metastore's manifests
+# source) rather than something the chart can produce.
+apiVersion: rbac.authorization.k8s.io/v1
+kind: Role
+metadata:
+  name: airflow-spark-submitter
+  namespace: processing
+rules:
+  - apiGroups: ["sparkoperator.k8s.io"]
+    resources: ["sparkapplications"]
+    verbs: ["get", "list", "watch", "create", "delete"]
+  - apiGroups: [""]
+    resources: ["pods", "pods/log"]
+    verbs: ["get", "list", "watch"]
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: RoleBinding
+metadata:
+  name: airflow-spark-submitter
+  namespace: processing
+subjects:
+  - kind: ServiceAccount
+    name: airflow-worker
+    namespace: orchestration
+roleRef:
+  kind: Role
+  name: airflow-spark-submitter
+  apiGroup: rbac.authorization.k8s.io
