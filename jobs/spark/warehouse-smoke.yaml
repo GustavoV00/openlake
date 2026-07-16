@@ -1,6 +1,9 @@
-# M3 verification job — writes an Iceberg table to s3a://warehouse via HMS.
-# Apply out-of-band (not GitOps): jobs are one-shot, not desired-state.
+# M3 verification job — creates an Iceberg table in the `bronze` schema via HMS.
+# Apply out-of-band (not GitOps): jobs are one-shot, not desired-state. The script
+# is delivered from s3a (mainApplicationFile below), so editing it needs no image
+# rebuild — just re-upload to MinIO and re-apply.
 #   kubectl apply -f jobs/spark/minio-spark-secret.yaml
+#   mc cp jobs/spark/warehouse_smoke.py local/warehouse/scripts/warehouse_smoke.py
 #   kubectl apply -f jobs/spark/warehouse-smoke.yaml
 #   kubectl logs -n processing warehouse-smoke-driver -f   # look for "SMOKE OK"
 apiVersion: sparkoperator.k8s.io/v1beta2
@@ -13,7 +16,7 @@ spec:
   mode: cluster
   image: openlake-spark:4.0.2
   imagePullPolicy: IfNotPresent   # kind-loaded local image, no registry
-  mainApplicationFile: "local:///app/warehouse_smoke.py"
+  mainApplicationFile: "s3a://warehouse/scripts/warehouse_smoke.py"
   sparkVersion: "4.0.2"
   sparkConf:
     # --- S3A → deepstore MinIO ---
@@ -24,12 +27,16 @@ spec:
     # Creds come from AWS_* env (envSecretKeyRefs below), not inline. SDK v2 class
     # (Hadoop 3.4.1 S3A) — reads AWS_ACCESS_KEY_ID / AWS_SECRET_ACCESS_KEY.
     spark.hadoop.fs.s3a.aws.credentials.provider: "software.amazon.awssdk.auth.credentials.EnvironmentVariableCredentialsProvider"
-    # --- Iceberg catalog "warehouse" backed by Hive Metastore ---
+    # --- Iceberg via the default catalog, backed by Hive Metastore (thrift) ---
+    # SparkSessionCatalog wraps the built-in spark_catalog so plain `bronze.demo`
+    # (no catalog prefix) is an Iceberg table in HMS. No named "warehouse" catalog —
+    # that's the Trino query-side catalog only. Tables inherit the `bronze` schema's
+    # S3 location (set by Trino's CREATE SCHEMA), so no default warehouse dir here.
     spark.sql.extensions: "org.apache.iceberg.spark.extensions.IcebergSparkSessionExtensions"
-    spark.sql.catalog.warehouse: "org.apache.iceberg.spark.SparkCatalog"
-    spark.sql.catalog.warehouse.type: "hive"
-    spark.sql.catalog.warehouse.uri: "thrift://hive-metastore.metastore.svc.cluster.local:9083"
-    spark.sql.catalog.warehouse.warehouse: "s3a://warehouse/"
+    spark.sql.catalog.spark_catalog: "org.apache.iceberg.spark.SparkSessionCatalog"
+    spark.sql.catalog.spark_catalog.type: "hive"
+    spark.sql.catalog.spark_catalog.uri: "thrift://hive-metastore.metastore.svc.cluster.local:9083"
+  # Job script delivered from s3a (see header) — no image rebuild, no ConfigMap.
   driver:
     cores: 1
     memory: "1024m"

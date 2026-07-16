@@ -20,9 +20,9 @@ ADD https://repo1.maven.org/maven2/org/apache/hadoop/hadoop-aws/3.4.0/hadoop-aws
 ADD https://repo1.maven.org/maven2/io/prometheus/jmx/jmx_prometheus_javaagent/0.11.0/jmx_prometheus_javaagent-0.11.0.jar \
     /prometheus/jmx_prometheus_javaagent-0.11.0.jar
 
-# ponytail: smoke job baked in for M3's first-run verification. git-sync delivery
-# (spec §4.5, no per-job rebuilds) lands at M5 when Airflow drives real jobs.
-COPY warehouse_smoke.py /app/warehouse_smoke.py
+# Job code is NOT baked in — it's delivered from outside (a ConfigMap mounted into
+# the driver, see warehouse-smoke.yaml) so script edits don't force an image
+# rebuild. git-sync (spec §4.5) supersedes this at M5 when Airflow drives real jobs.
 
 RUN chmod 0644 ${SPARK_HOME}/jars/hadoop-aws-3.4.0.jar \
       ${SPARK_HOME}/jars/bundle-2.40.9.jar \
